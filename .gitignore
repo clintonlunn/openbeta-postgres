@@ -1,0 +1,33 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+.output/
+
+# Environment (contains secrets)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# Supabase local
+supabase/.temp/
+
+# IDE
+.idea/
+.vscode/
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# OS
+.DS_Store
+
+# Parquet files (downloaded during sync)
+*.parquet
