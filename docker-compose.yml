@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: openbeta
+    ports:
+      - "5432:5432"
+    volumes:
+      # Schema and seed data (loaded in order on first startup)
+      - ./schema-v2.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./seed-v2.sql:/docker-entrypoint-initdb.d/02-seed.sql
+      # Mount workspace for make commands
+      - .:/workspace
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgrest:
+    image: postgrest/postgrest:v12.2.3
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://postgres:postgres@db:5432/openbeta
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: postgres  # TODO: Change to 'anon' role with proper RLS
+      PGRST_OPENAPI_SERVER_PROXY_URI: http://localhost:3002
+      # JWT settings (for auth - configure when ready)
+      # PGRST_JWT_SECRET: "your-secret-or-path-to-jwks"
+      # PGRST_JWT_AUD: "your-audience"
+    ports:
+      - "3002:3000"
+
+  # Swagger UI for browsing API docs
+  swagger:
+    image: swaggerapi/swagger-ui
+    environment:
+      API_URL: http://localhost:3002/
+    ports:
+      - "3003:8080"
+    depends_on:
+      - postgrest
+
+volumes:
+  pgdata:
