@@ -1,0 +1,42 @@
+name: Sync to Supabase
+
+on:
+  # Run weekly on Sunday at midnight UTC
+  schedule:
+    - cron: '0 0 * * 0'
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install duckdb psycopg2-binary pandas
+
+      - name: Download latest parquet
+        run: |
+          curl -sL -o openbeta-climbs.parquet \
+            "https://github.com/OpenBeta/parquet-exporter/releases/latest/download/openbeta-climbs.parquet"
+          ls -la openbeta-climbs.parquet
+
+      - name: Seed Supabase
+        env:
+          PGHOST: ${{ secrets.SUPABASE_HOST }}
+          PGPORT: ${{ secrets.SUPABASE_PORT }}
+          PGDATABASE: ${{ secrets.SUPABASE_DATABASE }}
+          PGUSER: ${{ secrets.SUPABASE_USER }}
+          PGPASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
+          PARQUET_FILE: openbeta-climbs.parquet
+        run: |
+          python seed-from-parquet.py
