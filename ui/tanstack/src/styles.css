@@ -1,0 +1,72 @@
+/* Inter font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+@theme inline {
+  /* OpenBeta brand colors */
+  --color-ob-primary: #F15E40;
+  --color-ob-secondary: #8BB191;
+  --color-ob-dark: #0f172a;
+  --color-ob-area: #004F6E;
+  --color-ob-accent: #68e1fd;
+
+  /* shadcn semantic colors - Tailwind v4 */
+  --color-background: hsl(0 0% 100%);
+  --color-foreground: hsl(222.2 84% 4.9%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(222.2 84% 4.9%);
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(222.2 84% 4.9%);
+  --color-primary: hsl(12 85% 60%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(134 24% 63%);
+  --color-secondary-foreground: hsl(222.2 47.4% 11.2%);
+  --color-muted: hsl(210 40% 96.1%);
+  --color-muted-foreground: hsl(215.4 16.3% 46.9%);
+  --color-accent: hsl(189 96% 70%);
+  --color-accent-foreground: hsl(222.2 47.4% 11.2%);
+  --color-destructive: hsl(0 84.2% 60.2%);
+  --color-destructive-foreground: hsl(0 0% 98%);
+  --color-border: hsl(214.3 31.8% 91.4%);
+  --color-input: hsl(214.3 31.8% 91.4%);
+  --color-ring: hsl(12 85% 60%);
+
+  /* Border radius */
+  --radius: 0.5rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+}
+
+body {
+  @apply m-0 bg-background text-foreground;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+    "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1 {
+  @apply text-4xl font-semibold tracking-tight;
+}
+
+h2 {
+  @apply text-xl font-bold tracking-tight;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Base border color */
+* {
+  @apply border-border;
+}
