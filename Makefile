@@ -1,6 +1,14 @@
 # OpenBeta PostgreSQL Development
 
-.PHONY: up down logs psql reset test help api-test
+.PHONY: up down logs psql reset test help api-test \
+        supabase-seed supabase-reset supabase-schema supabase-rls \
+        deploy-ui full-reset infra-plan infra-apply
+
+# Load .env file if it exists
+ifneq (,$(wildcard ./.env))
+    include .env
+    export
+endif
 
 # =============================================================================
 # DOCKER COMMANDS
@@ -155,33 +163,156 @@ stats:
 # HELP
 # =============================================================================
 
+# =============================================================================
+# SUPABASE COMMANDS (requires .env with PGHOST, PGUSER, PGPASSWORD, etc.)
+# =============================================================================
+
+# Connection string for Supabase
+SUPABASE_CONN := postgresql://$(PGUSER):$(PGPASSWORD)@$(PGHOST):$(PGPORT)/$(PGDATABASE)?sslmode=require
+
+# Check if Supabase env vars are set
+check-supabase-env:
+	@if [ -z "$(PGHOST)" ] || [ -z "$(PGPASSWORD)" ]; then \
+		echo "Error: Missing Supabase env vars. Create .env file with:"; \
+		echo "  PGHOST=aws-0-us-west-2.pooler.supabase.com"; \
+		echo "  PGPORT=5432"; \
+		echo "  PGDATABASE=postgres"; \
+		echo "  PGUSER=postgres.your-project-ref"; \
+		echo "  PGPASSWORD=your-password"; \
+		exit 1; \
+	fi
+
+# Seed Supabase from parquet file
+supabase-seed: check-supabase-env
+	@echo "Downloading latest parquet file..."
+	curl -sL -o openbeta-climbs.parquet \
+		"https://github.com/OpenBeta/parquet-exporter/releases/latest/download/openbeta-climbs.parquet"
+	@echo "Seeding Supabase..."
+	PARQUET_FILE=openbeta-climbs.parquet python3 seed-from-parquet.py
+	@echo "Done! Cleaning up..."
+	rm -f openbeta-climbs.parquet
+
+# Apply schema to Supabase
+supabase-schema: check-supabase-env
+	@echo "Applying schema to Supabase..."
+	psql "$(SUPABASE_CONN)" -f schema-v2.sql
+	@echo "Schema applied."
+
+# Apply RLS policies to Supabase
+supabase-rls: check-supabase-env
+	@echo "Applying RLS policies to Supabase..."
+	psql "$(SUPABASE_CONN)" -f rls-generic.sql
+	@echo "RLS policies applied."
+
+# Full Supabase reset (schema + RLS + seed)
+supabase-reset: check-supabase-env supabase-schema supabase-rls supabase-seed
+	@echo ""
+	@echo "=========================================="
+	@echo "Supabase fully reset!"
+	@echo "=========================================="
+
+# Connect to Supabase via psql
+supabase-psql: check-supabase-env
+	psql "$(SUPABASE_CONN)"
+
+# Show Supabase stats
+supabase-stats: check-supabase-env
+	@psql "$(SUPABASE_CONN)" -c "\
+		SELECT 'areas' as table_name, COUNT(*) as count FROM areas WHERE deleted_at IS NULL \
+		UNION ALL \
+		SELECT 'climbs', COUNT(*) FROM climbs WHERE deleted_at IS NULL \
+		UNION ALL \
+		SELECT 'users', COUNT(*) FROM users WHERE deleted_at IS NULL;"
+
+# =============================================================================
+# DEPLOYMENT COMMANDS
+# =============================================================================
+
+# Build and deploy UI to Cloudflare Workers
+deploy-ui:
+	@echo "Building UI..."
+	cd ui/tanstack && npm run build
+	@echo "Deploying to Cloudflare Workers..."
+	cd ui/tanstack && npx wrangler deploy
+	@echo "Deployed!"
+
+# =============================================================================
+# INFRASTRUCTURE (OpenTofu)
+# =============================================================================
+
+# Plan infrastructure changes
+infra-plan:
+	cd infra && ~/.local/bin/tofu plan
+
+# Apply infrastructure changes
+infra-apply:
+	cd infra && ~/.local/bin/tofu apply
+
+# Initialize infrastructure
+infra-init:
+	cd infra && ~/.local/bin/tofu init
+
+# Import existing Supabase project
+infra-import:
+	@if [ -z "$(PROJECT_REF)" ]; then \
+		echo "Usage: make infra-import PROJECT_REF=your-project-ref"; \
+		exit 1; \
+	fi
+	cd infra && ~/.local/bin/tofu import supabase_project.main $(PROJECT_REF)
+
+# =============================================================================
+# FULL RESET (blow everything away and rebuild)
+# =============================================================================
+
+# Quick reset: just reseed existing project
+quick-reset: supabase-reset deploy-ui
+	@echo ""
+	@echo "=========================================="
+	@echo "Quick reset complete!"
+	@echo "  - Database: reset and seeded"
+	@echo "  - UI: rebuilt and deployed"
+	@echo "=========================================="
+
+# Full IaC reset: destroy and recreate Supabase project via OpenTofu
+full-reset:
+	@./scripts/full-iac-reset.sh
+
+# =============================================================================
+# HELP
+# =============================================================================
+
 help:
 	@echo "OpenBeta PostgreSQL Development Commands"
 	@echo ""
-	@echo "Docker:"
+	@echo "Docker (local dev):"
 	@echo "  make up              - Start all services"
 	@echo "  make down            - Stop all services"
 	@echo "  make logs            - View all logs"
-	@echo "  make logs-db         - View database logs"
-	@echo "  make logs-api        - View PostgREST logs"
+	@echo "  make psql            - Connect to local database"
+	@echo "  make reset           - Reset local database"
 	@echo ""
-	@echo "Database:"
-	@echo "  make psql            - Connect to database"
-	@echo "  make reset           - Reset database (destroys data)"
-	@echo "  make reload-schema   - Reload schema without losing volume"
+	@echo "Supabase (production):"
+	@echo "  make supabase-seed   - Seed from parquet"
+	@echo "  make supabase-schema - Apply schema"
+	@echo "  make supabase-rls    - Apply RLS policies"
+	@echo "  make supabase-reset  - Full reset (schema + RLS + seed)"
+	@echo "  make supabase-psql   - Connect to Supabase"
+	@echo "  make supabase-stats  - Show table counts"
+	@echo ""
+	@echo "Deployment:"
+	@echo "  make deploy-ui       - Build and deploy UI to Cloudflare"
+	@echo "  make quick-reset     - Reseed existing project + redeploy UI"
+	@echo "  make full-reset      - DESTROY and recreate everything via IaC"
+	@echo ""
+	@echo "Infrastructure (OpenTofu):"
+	@echo "  make infra-init      - Initialize OpenTofu"
+	@echo "  make infra-plan      - Plan changes"
+	@echo "  make infra-apply     - Apply changes"
+	@echo "  make infra-import PROJECT_REF=xxx - Import existing project"
 	@echo ""
 	@echo "Testing:"
-	@echo "  make api-test        - Test basic API endpoints"
-	@echo "  make test-area name=yosemite  - Find area by name"
-	@echo "  make test-climb name=nose     - Find climb by name"
+	@echo "  make api-test        - Test local API endpoints"
+	@echo "  make stats           - Show local table counts"
 	@echo ""
-	@echo "Exploration:"
-	@echo "  make tree            - Show area hierarchy"
-	@echo "  make climbs          - List climbs"
-	@echo "  make users           - List users"
-	@echo "  make history         - Show recent changes"
-	@echo "  make stats           - Show table counts"
-	@echo ""
-	@echo "URLs:"
-	@echo "  API:     http://localhost:3002"
-	@echo "  Swagger: http://localhost:3003"
+	@echo "Required: Create .env file with Supabase credentials"
+	@echo "  See .env.example for template"
