@@ -1,0 +1,38 @@
+# Example Terraform Variables
+# Copy to terraform.tfvars and fill in your values
+
+# =============================================================================
+# Supabase
+# =============================================================================
+# Get access token from: https://supabase.com/dashboard/account/tokens
+supabase_access_token = "sbp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Organization slug from dashboard URL or org settings
+supabase_organization_id = "your-org-slug"
+
+# Project settings
+supabase_project_name     = "openbeta"
+supabase_region           = "us-west-2"
+supabase_database_password = "your-secure-password"
+
+# =============================================================================
+# Cloudflare
+# =============================================================================
+# Create API token at: https://dash.cloudflare.com/profile/api-tokens
+# Required permissions: Workers Scripts (Edit), Account Settings (Read)
+cloudflare_api_token = "your-cloudflare-api-token"
+
+# Account ID from Cloudflare dashboard
+cloudflare_account_id = "your-account-id"
+
+# Worker name (becomes part of the URL)
+cloudflare_worker_name = "openbeta-ui"
+
+# =============================================================================
+# Application
+# =============================================================================
+environment = "prod"
+
+# Auth0 (optional, for JWT validation)
+# auth0_domain   = "your-tenant.auth0.com"
+# auth0_audience = "https://api.openbeta.io"
