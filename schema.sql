@@ -1,5 +1,19 @@
 -- OpenBeta PostgreSQL Schema (Simplified)
 -- Minimal POC: 4 tables, easy to understand
+-- Idempotent: can be re-run safely
+
+-- ============================================================================
+-- CLEANUP (drop existing objects)
+-- ============================================================================
+DROP VIEW IF EXISTS climbs_with_area CASCADE;
+DROP TABLE IF EXISTS ticks CASCADE;
+DROP TABLE IF EXISTS climbs CASCADE;
+DROP TABLE IF EXISTS areas CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP FUNCTION IF EXISTS current_user_id CASCADE;
+DROP FUNCTION IF EXISTS is_editor CASCADE;
+DROP FUNCTION IF EXISTS search_climbs CASCADE;
+DROP FUNCTION IF EXISTS search_areas CASCADE;
 
 -- ============================================================================
 -- EXTENSIONS
