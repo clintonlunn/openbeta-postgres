@@ -12,35 +12,37 @@
 -- ============================================================================
 -- HELPER FUNCTION: Get current user ID from JWT
 -- ============================================================================
--- This extracts the user ID from PostgREST JWT claims
--- Customize this for your auth provider:
---   - Supabase: auth.uid()
---   - Auth0: current_setting('request.jwt.claims', true)::json->>'sub'
---   - Custom: adjust the claim path as needed
+-- Supports both Supabase Auth and Auth0/external providers
+-- For Auth0: looks up user by external_auth_id and returns internal UUID
 CREATE OR REPLACE FUNCTION current_user_id() RETURNS UUID AS $$
 DECLARE
-    jwt_claims JSON;
-    user_id TEXT;
+    supabase_uid UUID;
+    jwt_sub TEXT;
+    user_uuid UUID;
 BEGIN
-    -- Try Supabase's auth.uid() first
+    -- Try Supabase Auth first
     BEGIN
-        RETURN auth.uid();
-    EXCEPTION WHEN undefined_function THEN
-        -- Fall back to standard PostgREST JWT claims
+        supabase_uid := auth.uid();
+        IF supabase_uid IS NOT NULL THEN
+            RETURN supabase_uid;
+        END IF;
+    EXCEPTION WHEN OTHERS THEN
+        -- auth.uid() not available, continue to JWT extraction
         NULL;
     END;
 
-    -- Standard PostgREST: extract from JWT claims
+    -- Try extracting from PostgREST JWT claims (for Auth0/external providers)
     BEGIN
-        jwt_claims := current_setting('request.jwt.claims', true)::JSON;
-        -- Try common claim names
-        user_id := COALESCE(
-            jwt_claims->>'sub',           -- Standard JWT subject
-            jwt_claims->>'user_id',       -- Custom claim
-            jwt_claims->>'id'             -- Alternative
-        );
-        IF user_id IS NOT NULL AND user_id != '' THEN
-            RETURN user_id::UUID;
+        jwt_sub := current_setting('request.jwt.claims', true)::json->>'sub';
+
+        IF jwt_sub IS NOT NULL AND jwt_sub != '' THEN
+            -- Look up user by external_auth_id and return their internal UUID
+            SELECT id INTO user_uuid
+            FROM users
+            WHERE external_auth_id = jwt_sub
+            AND deleted_at IS NULL;
+
+            RETURN user_uuid;
         END IF;
     EXCEPTION WHEN OTHERS THEN
         NULL;
