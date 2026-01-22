@@ -188,14 +188,14 @@ supabase-seed: check-supabase-env
 	curl -sL -o openbeta-climbs.parquet \
 		"https://github.com/OpenBeta/parquet-exporter/releases/latest/download/openbeta-climbs.parquet"
 	@echo "Seeding Supabase..."
-	PARQUET_FILE=openbeta-climbs.parquet python3 seed-simple.py
+	PARQUET_FILE=openbeta-climbs.parquet python3 seed.py
 	@echo "Done! Cleaning up..."
 	rm -f openbeta-climbs.parquet
 
 # Apply schema to Supabase (simplified 4-table schema)
 supabase-schema: check-supabase-env
 	@echo "Applying simplified schema to Supabase..."
-	psql "$(SUPABASE_CONN)" -f schema-simple.sql
+	psql "$(SUPABASE_CONN)" -f schema.sql
 	@echo "Schema applied."
 
 # Full Supabase reset (schema + seed) - RLS is included in schema-simple.sql
