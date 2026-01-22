@@ -230,6 +230,26 @@ def main():
 
     log(f"Inserted {len(climb_values):,} climbs ({skipped} skipped)")
 
+    # Update total_climbs for all parent areas (roll up from leaves)
+    log("Updating area climb counts (rolling up to parents)...")
+    cur.execute("""
+        UPDATE areas a
+        SET total_climbs = COALESCE(
+            (
+                SELECT COUNT(*)
+                FROM climbs c
+                JOIN areas leaf ON c.area_id = leaf.id
+                WHERE leaf.path <@ a.path
+                AND c.deleted_at IS NULL
+                AND leaf.deleted_at IS NULL
+            ),
+            0
+        )
+        WHERE a.deleted_at IS NULL
+    """)
+    conn.commit()
+    log("Area climb counts updated")
+
     # Re-enable triggers for normal operation
     log("Re-enabling triggers...")
     cur.execute("ALTER TABLE areas ENABLE TRIGGER areas_history_trigger")
