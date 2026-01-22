@@ -188,24 +188,18 @@ supabase-seed: check-supabase-env
 	curl -sL -o openbeta-climbs.parquet \
 		"https://github.com/OpenBeta/parquet-exporter/releases/latest/download/openbeta-climbs.parquet"
 	@echo "Seeding Supabase..."
-	PARQUET_FILE=openbeta-climbs.parquet python3 seed-from-parquet.py
+	PARQUET_FILE=openbeta-climbs.parquet python3 seed-simple.py
 	@echo "Done! Cleaning up..."
 	rm -f openbeta-climbs.parquet
 
-# Apply schema to Supabase
+# Apply schema to Supabase (simplified 4-table schema)
 supabase-schema: check-supabase-env
-	@echo "Applying schema to Supabase..."
-	psql "$(SUPABASE_CONN)" -f schema-v2.sql
+	@echo "Applying simplified schema to Supabase..."
+	psql "$(SUPABASE_CONN)" -f schema-simple.sql
 	@echo "Schema applied."
 
-# Apply RLS policies to Supabase
-supabase-rls: check-supabase-env
-	@echo "Applying RLS policies to Supabase..."
-	psql "$(SUPABASE_CONN)" -f rls-generic.sql
-	@echo "RLS policies applied."
-
-# Full Supabase reset (schema + RLS + seed)
-supabase-reset: check-supabase-env supabase-schema supabase-rls supabase-seed
+# Full Supabase reset (schema + seed) - RLS is included in schema-simple.sql
+supabase-reset: check-supabase-env supabase-schema supabase-seed
 	@echo ""
 	@echo "=========================================="
 	@echo "Supabase fully reset!"
@@ -218,11 +212,13 @@ supabase-psql: check-supabase-env
 # Show Supabase stats
 supabase-stats: check-supabase-env
 	@psql "$(SUPABASE_CONN)" -c "\
-		SELECT 'areas' as table_name, COUNT(*) as count FROM areas WHERE deleted_at IS NULL \
+		SELECT 'areas' as table_name, COUNT(*) as count FROM areas \
 		UNION ALL \
-		SELECT 'climbs', COUNT(*) FROM climbs WHERE deleted_at IS NULL \
+		SELECT 'climbs', COUNT(*) FROM climbs \
 		UNION ALL \
-		SELECT 'users', COUNT(*) FROM users WHERE deleted_at IS NULL;"
+		SELECT 'users', COUNT(*) FROM users \
+		UNION ALL \
+		SELECT 'ticks', COUNT(*) FROM ticks;"
 
 # =============================================================================
 # DEPLOYMENT COMMANDS
@@ -293,9 +289,8 @@ help:
 	@echo ""
 	@echo "Supabase (production):"
 	@echo "  make supabase-seed   - Seed from parquet"
-	@echo "  make supabase-schema - Apply schema"
-	@echo "  make supabase-rls    - Apply RLS policies"
-	@echo "  make supabase-reset  - Full reset (schema + RLS + seed)"
+	@echo "  make supabase-schema - Apply simplified schema (includes RLS)"
+	@echo "  make supabase-reset  - Full reset (schema + seed)"
 	@echo "  make supabase-psql   - Connect to Supabase"
 	@echo "  make supabase-stats  - Show table counts"
 	@echo ""
